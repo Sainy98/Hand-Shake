@@ -126,6 +126,68 @@ lemma positiveGap_moveToward (x y : E → ℤ) (i j : E)
   rw [hsum, hfi, hgi, hfj, hgj]
   ring
 
+
+lemma exists_lt_coord_of_same_sum_ne
+    (x y : E → ℤ)
+    (hsum : (∑ i, x i) = ∑ i, y i)
+    (hne : x ≠ y) :
+    ∃ i, y i < x i := by
+  by_contra h
+  push_neg at h
+  have hdiff : (∑ i, x i - y i) = 0 := by
+    rw [Finset.sum_sub_distrib, hsum]
+    ring
+  have hnonneg : ∀ i ∈ (Finset.univ : Finset E), 0 ≤ y i - x i := by
+    intro i hi
+    exact sub_nonneg.mpr (h i)
+  have hdiff' : (∑ i, y i - x i) = 0 := by
+    rw [Finset.sum_sub_distrib, ← hsum]
+    ring
+  have hzero := (Finset.sum_eq_zero_iff_of_nonneg hnonneg).mp hdiff'
+  apply hne
+  funext i
+  have hi : y i - x i = 0 := hzero i (Finset.mem_univ i)
+  omega
+
+lemma local_optimal_implies_global
+    (D : Finset (E → ℤ)) (c : (E → ℤ) → ℤ) (r : ℤ)
+    (h : IntegerExchangeAxioms D c r)
+    (x : E → ℤ) (hx : x ∈ D)
+    (hlocal : ∀ i j : E, moveUnit x i j ∈ D → c x ≤ c (moveUnit x i j)) :
+    ∀ y ∈ D, c x ≤ c y := by
+  intro y hy
+  by_contra hxy
+  have hylt : c y < c x := lt_of_not_ge hxy
+  let B : Set (E → ℤ) := {z | z ∈ D ∧ c z < c x}
+  have hBfinite : B.Finite := by
+    refine D.finite_toSet.subset ?_
+    intro z hz
+    exact hz.1
+  have hBnonempty : B.Nonempty := ⟨y, hy, hylt⟩
+  obtain ⟨z, hzB, hzmin⟩ :=
+    Set.exists_min_image B (positiveGap x) hBfinite hBnonempty
+  have hzD : z ∈ D := hzB.1
+  have hzlt : c z < c x := hzB.2
+  have hne : x ≠ z := by
+    intro hxz
+    subst z
+    exact (lt_irrefl _ hzlt)
+  have hsumxz : (∑ i, x i) = ∑ i, z i := by
+    rw [h.1 x hx, h.1 z hzD]
+  obtain ⟨i, hi⟩ := exists_lt_coord_of_same_sum_ne x z hsumxz hne
+  obtain ⟨j, hj, hxmove, hzmove, hcost⟩ :=
+    h.2 x hx z hzD i hi
+  have hxlocal : c x ≤ c (moveUnit x i j) :=
+    hlocal i j hxmove
+  have hzmove_le : c (moveUnit z j i) ≤ c z := by
+    omega
+  have hzmoveB : moveUnit z j i ∈ B := by
+    exact ⟨hzmove, lt_of_le_of_lt hzmove_le hzlt⟩
+  have hgap :=
+    positiveGap_moveToward x z i j hi hj
+  have hmin := hzmin (moveUnit z j i) hzmoveB
+  omega
+
 end BasicIdentities
 
 theorem integer_exchange_price_certificate
