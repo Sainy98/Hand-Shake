@@ -490,6 +490,161 @@ lemma noShortcut_multiMove_mem
       rw [hfull]
       exact hymove
 
+
+def subsetSum (W : Finset E) (x : E → ℤ) : ℤ :=
+  ∑ i ∈ W, x i
+
+lemma subsetSum_moveUnit (W : Finset E) (x : E → ℤ) (i j : E) :
+    subsetSum W (moveUnit x i j) =
+      subsetSum W x - (if i ∈ W then 1 else 0) +
+        (if j ∈ W then 1 else 0) := by
+  classical
+  simp [subsetSum, moveUnit, Finset.sum_sub_distrib, Finset.sum_add_distrib]
+
+lemma IntegerExchangeAxioms.subsetSum
+    (D : Finset (E → ℤ)) (c : (E → ℤ) → ℤ) (r : ℤ)
+    (h : IntegerExchangeAxioms D c r) (W : Finset E) :
+    IntegerExchangeAxioms D (subsetSum W) r := by
+  refine ⟨h.1, ?_⟩
+  intro x hx y hy i hi
+  obtain ⟨j, hj, hxmove, hymove, hcost⟩ := h.2 x hx y hy i hi
+  refine ⟨j, hj, hxmove, hymove, ?_⟩
+  rw [subsetSum_moveUnit, subsetSum_moveUnit]
+  ring
+
+lemma IntegerExchangeAxioms.negSubsetSum
+    (D : Finset (E → ℤ)) (c : (E → ℤ) → ℤ) (r : ℤ)
+    (h : IntegerExchangeAxioms D c r) (W : Finset E) :
+    IntegerExchangeAxioms D (fun x => - subsetSum W x) r := by
+  refine ⟨h.1, ?_⟩
+  intro x hx y hy i hi
+  obtain ⟨j, hj, hxmove, hymove, hcost⟩ := h.2 x hx y hy i hi
+  refine ⟨j, hj, hxmove, hymove, ?_⟩
+  rw [subsetSum_moveUnit, subsetSum_moveUnit]
+  ring
+
+def exchangeRel
+    (D₁ D₂ : Finset (E → ℤ))
+    (x₁ x₂ : E → ℤ) (i j : E) : Prop :=
+  moveUnit x₁ i j ∈ D₁ ∨ moveUnit x₂ j i ∈ D₂
+
+def positiveCoord (x₁ x₂ : E → ℤ) (i : E) : Prop :=
+  x₂ i < x₁ i
+
+def negativeCoord (x₁ x₂ : E → ℤ) (i : E) : Prop :=
+  x₁ i < x₂ i
+
+def exchangeReachable
+    (D₁ D₂ : Finset (E → ℤ))
+    (x₁ x₂ : E → ℤ) (v : E) : Prop :=
+  ∃ s : E, positiveCoord x₁ x₂ s ∧
+    Relation.ReflTransGen (exchangeRel D₁ D₂ x₁ x₂) s v
+
+lemma positiveCoord_reachable
+    (D₁ D₂ : Finset (E → ℤ))
+    (x₁ x₂ : E → ℤ) {s : E}
+    (hs : positiveCoord x₁ x₂ s) :
+    exchangeReachable D₁ D₂ x₁ x₂ s :=
+  ⟨s, hs, Relation.ReflTransGen.refl⟩
+
+lemma exchangeReachable_tail
+    (D₁ D₂ : Finset (E → ℤ))
+    (x₁ x₂ : E → ℤ) {u v : E}
+    (hu : exchangeReachable D₁ D₂ x₁ x₂ u)
+    (huv : exchangeRel D₁ D₂ x₁ x₂ u v) :
+    exchangeReachable D₁ D₂ x₁ x₂ v := by
+  obtain ⟨s, hs, hsu⟩ := hu
+  exact ⟨s, hs, Relation.ReflTransGen.tail hsu huv⟩
+
+lemma exists_reachable_negative
+    (D₁ D₂ : Finset (E → ℤ))
+    (c₁ c₂ : (E → ℤ) → ℤ)
+    (r : ℤ)
+    (h₁ : IntegerExchangeAxioms D₁ c₁ r)
+    (h₂ : IntegerExchangeAxioms D₂ c₂ r)
+    (x₁ x₂ : E → ℤ)
+    (hx₁ : x₁ ∈ D₁) (hx₂ : x₂ ∈ D₂)
+    (hne : x₁ ≠ x₂)
+    (hcommon : ∃ z : E → ℤ, z ∈ D₁ ∧ z ∈ D₂) :
+    ∃ t : E,
+      negativeCoord x₁ x₂ t ∧
+      exchangeReachable D₁ D₂ x₁ x₂ t := by
+  classical
+  by_contra hnone
+  push Not at hnone
+  let W : Finset E :=
+    Finset.univ.filter (exchangeReachable D₁ D₂ x₁ x₂)
+  have hpos_mem : ∀ {i : E}, positiveCoord x₁ x₂ i → i ∈ W := by
+    intro i hi
+    simp only [W, Finset.mem_filter, Finset.mem_univ, true_and]
+    exact positiveCoord_reachable D₁ D₂ x₁ x₂ hi
+  have hneg_not_mem : ∀ {i : E}, negativeCoord x₁ x₂ i → i ∉ W := by
+    intro i hi hiW
+    have hir :
+        exchangeReachable D₁ D₂ x₁ x₂ i := by
+      simpa [W] using hiW
+    exact hnone i hi hir
+  have hno_out :
+      ∀ {i j : E}, i ∈ W → j ∉ W →
+        ¬ exchangeRel D₁ D₂ x₁ x₂ i j := by
+    intro i j hiW hjW hij
+    have hir :
+        exchangeReachable D₁ D₂ x₁ x₂ i := by
+      simpa [W] using hiW
+    have hjr :=
+      exchangeReachable_tail D₁ D₂ x₁ x₂ hir hij
+    apply hjW
+    simpa [W] using hjr
+  have hsum : (∑ i, x₁ i) = ∑ i, x₂ i := by
+    rw [h₁.1 x₁ hx₁, h₂.1 x₂ hx₂]
+  obtain ⟨s, hs⟩ :=
+    exists_lt_coord_of_same_sum_ne x₁ x₂ hsum hne
+  have hsW : s ∈ W := hpos_mem hs
+  have hleW : ∀ i ∈ W, x₂ i ≤ x₁ i := by
+    intro i hiW
+    by_contra h
+    have hneg : negativeCoord x₁ x₂ i := by
+      exact lt_of_not_ge h
+    exact hneg_not_mem hneg hiW
+  have hstrict :
+      subsetSum W x₂ < subsetSum W x₁ := by
+    unfold subsetSum
+    exact Finset.sum_lt_sum hleW ⟨s, hsW, hs⟩
+  have hx₁local :
+      ∀ i j : E, moveUnit x₁ i j ∈ D₁ →
+        subsetSum W x₁ ≤ subsetSum W (moveUnit x₁ i j) := by
+    intro i j hm
+    rw [subsetSum_moveUnit]
+    by_cases hi : i ∈ W <;> by_cases hj : j ∈ W
+    · simp [hi, hj]
+    · exfalso
+      exact hno_out hi hj (Or.inl hm)
+    · simp [hi, hj]
+    · simp [hi, hj]
+  have hx₂local :
+      ∀ i j : E, moveUnit x₂ i j ∈ D₂ →
+        - subsetSum W x₂ ≤ - subsetSum W (moveUnit x₂ i j) := by
+    intro i j hm
+    rw [subsetSum_moveUnit]
+    by_cases hi : i ∈ W <;> by_cases hj : j ∈ W
+    · simp [hi, hj]
+    · simp [hi, hj]
+    · exfalso
+      exact hno_out hj hi (Or.inr hm)
+    · simp [hi, hj]
+  have hx₁global :=
+    local_optimal_implies_global D₁ (subsetSum W) r
+      (h₁.subsetSum W) x₁ hx₁ hx₁local
+  have hx₂global :=
+    local_optimal_implies_global D₂ (fun z => - subsetSum W z) r
+      (h₂.negSubsetSum W) x₂ hx₂ hx₂local
+  obtain ⟨z, hz₁, hz₂⟩ := hcommon
+  have h₁z : subsetSum W x₁ ≤ subsetSum W z :=
+    hx₁global z hz₁
+  have h₂z : - subsetSum W x₂ ≤ - subsetSum W z :=
+    hx₂global z hz₂
+  omega
+
 end BasicIdentities
 
 theorem integer_exchange_price_certificate
