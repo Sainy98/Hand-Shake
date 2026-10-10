@@ -294,6 +294,206 @@ lemma minimizerSet_exchangeClosed
   intro x hx y hy i hi
   exact exchange_of_globalMins D c r h hx hy i hi
 
+
+def multiMove {n : ℕ} (x : E → ℤ)
+    (u v : Fin n → E) : E → ℤ :=
+  fun k =>
+    x k -
+      (∑ a, if k = u a then (1 : ℤ) else 0) +
+      (∑ a, if k = v a then (1 : ℤ) else 0)
+
+def endpointMap {n : ℕ} (u v : Fin n → E) :
+    Fin n ⊕ Fin n → E :=
+  Sum.elim u v
+
+def EndpointsInjective {n : ℕ} (u v : Fin n → E) : Prop :=
+  Function.Injective (endpointMap u v)
+
+lemma multiMove_zero (x : E → ℤ)
+    (u v : Fin 0 → E) :
+    multiMove x u v = x := by
+  funext k
+  simp [multiMove]
+
+lemma multiMove_snoc {n : ℕ} (x : E → ℤ)
+    (u v : Fin (n + 1) → E) :
+    multiMove x u v =
+      moveUnit
+        (multiMove x (fun a : Fin n => u a.castSucc)
+          (fun a : Fin n => v a.castSucc))
+        (u (Fin.last n)) (v (Fin.last n)) := by
+  funext k
+  simp [multiMove, moveUnit, Fin.sum_univ_castSucc]
+  ring
+
+lemma endpointsInjective_prefix {n : ℕ}
+    {u v : Fin (n + 1) → E}
+    (h : EndpointsInjective u v) :
+    EndpointsInjective
+      (fun a : Fin n => u a.castSucc)
+      (fun a : Fin n => v a.castSucc) := by
+  intro a b hab
+  cases a with
+  | inl a =>
+      cases b with
+      | inl b =>
+          have hbig :
+              (Sum.inl a.castSucc : Fin (n + 1) ⊕ Fin (n + 1)) =
+                Sum.inl b.castSucc := h hab
+          have hab' : a.castSucc = b.castSucc := Sum.inl.inj hbig
+          exact congrArg Sum.inl (Fin.castSucc_injective hab')
+      | inr b =>
+          have hbig :
+              (Sum.inl a.castSucc : Fin (n + 1) ⊕ Fin (n + 1)) =
+                Sum.inr b.castSucc := h hab
+          cases hbig
+  | inr a =>
+      cases b with
+      | inl b =>
+          have hbig :
+              (Sum.inr a.castSucc : Fin (n + 1) ⊕ Fin (n + 1)) =
+                Sum.inl b.castSucc := h hab
+          cases hbig
+      | inr b =>
+          have hbig :
+              (Sum.inr a.castSucc : Fin (n + 1) ⊕ Fin (n + 1)) =
+                Sum.inr b.castSucc := h hab
+          have hab' : a.castSucc = b.castSucc := Sum.inr.inj hbig
+          exact congrArg Sum.inr (Fin.castSucc_injective hab')
+
+lemma endpointsInjective_u_ne_v {n : ℕ}
+    {u v : Fin n → E} (h : EndpointsInjective u v)
+    (a b : Fin n) :
+    u a ≠ v b := by
+  intro huv
+  have hsum :
+      (Sum.inl a : Fin n ⊕ Fin n) = Sum.inr b :=
+    h huv
+  cases hsum
+
+lemma endpointsInjective_u {n : ℕ}
+    {u v : Fin n → E} (h : EndpointsInjective u v) :
+    Function.Injective u := by
+  intro a b hab
+  have hsum :
+      (Sum.inl a : Fin n ⊕ Fin n) = Sum.inl b :=
+    h hab
+  exact Sum.inl.inj hsum
+
+lemma endpointsInjective_v {n : ℕ}
+    {u v : Fin n → E} (h : EndpointsInjective u v) :
+    Function.Injective v := by
+  intro a b hab
+  have hsum :
+      (Sum.inr a : Fin n ⊕ Fin n) = Sum.inr b :=
+    h hab
+  exact Sum.inr.inj hsum
+
+lemma noShortcut_multiMove_mem
+    (B : Set (E → ℤ)) (hB : ExchangeClosed B)
+    (x : E → ℤ) (hx : x ∈ B) :
+    ∀ (n : ℕ) (u v : Fin n → E),
+      EndpointsInjective u v →
+      (∀ a : Fin n, moveUnit x (u a) (v a) ∈ B) →
+      (∀ a b : Fin n, a < b →
+        moveUnit x (u a) (v b) ∉ B) →
+      multiMove x u v ∈ B := by
+  intro n
+  induction n with
+  | zero =>
+      intro u v hinj hsingle hshortcut
+      simpa [multiMove] using hx
+  | succ n ih =>
+      intro u v hinj hsingle hshortcut
+      let u0 : Fin n → E := fun a => u a.castSucc
+      let v0 : Fin n → E := fun a => v a.castSucc
+      let ul : E := u (Fin.last n)
+      let vl : E := v (Fin.last n)
+      have hinj0 : EndpointsInjective u0 v0 := by
+        exact endpointsInjective_prefix hinj
+      have hsingle0 : ∀ a : Fin n, moveUnit x (u0 a) (v0 a) ∈ B := by
+        intro a
+        exact hsingle a.castSucc
+      have hshortcut0 :
+          ∀ a b : Fin n, a < b →
+            moveUnit x (u0 a) (v0 b) ∉ B := by
+        intro a b hab
+        exact hshortcut a.castSucc b.castSucc (by simpa using hab)
+      have hyB : multiMove x u0 v0 ∈ B :=
+        ih u0 v0 hinj0 hsingle0 hshortcut0
+      have hzB : moveUnit x ul vl ∈ B :=
+        hsingle (Fin.last n)
+      have hul_ne_vl : ul ≠ vl := by
+        exact endpointsInjective_u_ne_v hinj (Fin.last n) (Fin.last n)
+      have hul_fresh_u : ∀ a : Fin n, ul ≠ u0 a := by
+        intro a hua
+        have huinj := endpointsInjective_u hinj
+        have heq : (Fin.last n : Fin (n + 1)) = a.castSucc :=
+          huinj hua
+        exact (Fin.last_ne_castSucc a) heq
+      have hul_fresh_v : ∀ a : Fin n, ul ≠ v0 a := by
+        intro a huv
+        exact endpointsInjective_u_ne_v hinj (Fin.last n) a.castSucc huv
+      have hyl : multiMove x u0 v0 ul = x ul := by
+        simp [multiMove, hul_fresh_u, hul_fresh_v]
+      have hzl : moveUnit x ul vl ul = x ul - 1 := by
+        simp [moveUnit, hul_ne_vl]
+      have hlt : moveUnit x ul vl ul < multiMove x u0 v0 ul := by
+        rw [hyl, hzl]
+        omega
+      obtain ⟨j, hj, hymove, hzmove⟩ :=
+        hB (multiMove x u0 v0) hyB
+          (moveUnit x ul vl) hzB ul hlt
+      have hj_eq : j = vl := by
+        by_contra hjv
+        have hjul : j ≠ ul := by
+          intro hju
+          subst j
+          rw [hyl, hzl] at hj
+          omega
+        have hzj : moveUnit x ul vl j = x j := by
+          simp [moveUnit, hjul, hjv]
+        have hyltx : multiMove x u0 v0 j < x j := by
+          rw [← hzj]
+          exact hj
+        have hsrc : ∃ a : Fin n, j = u0 a := by
+          by_contra hnone
+          push Not at hnone
+          have ht_nonneg :
+              0 ≤ (∑ a : Fin n,
+                if j = v0 a then (1 : ℤ) else 0) := by
+            exact Finset.sum_nonneg fun a ha => by
+              split_ifs <;> omega
+          have hyformula :
+              multiMove x u0 v0 j =
+                x j +
+                  (∑ a : Fin n,
+                    if j = v0 a then (1 : ℤ) else 0) := by
+            simp [multiMove, hnone]
+          rw [hyformula] at hyltx
+          omega
+        obtain ⟨a, rfl⟩ := hsrc
+        have hcross_not :
+            moveUnit x (u0 a) vl ∉ B := by
+          exact hshortcut a.castSucc (Fin.last n)
+            (Fin.castSucc_lt_last a)
+        have hpaired_eq :
+            moveUnit (moveUnit x ul vl) (u0 a) ul =
+              moveUnit x (u0 a) vl := by
+          funext k
+          simp [moveUnit]
+          ring
+        apply hcross_not
+        rw [← hpaired_eq]
+        exact hzmove
+      subst j
+      have hfull :
+          multiMove x u v =
+            moveUnit (multiMove x u0 v0) ul vl := by
+        simpa [u0, v0, ul, vl] using multiMove_snoc x u v
+      rw [hfull]
+      exact hymove
+
 end BasicIdentities
 
 theorem integer_exchange_price_certificate
