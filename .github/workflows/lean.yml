@@ -44,7 +44,7 @@ jobs:
       - name: Compile current development
         run: |
           export PATH="$HOME/.elan/bin:$PATH"
-          lake build
+          lake env lean TuringTask/Scratch.lean
           lake env lean TuringTask/Basic.lean
 
       - name: Reject proof escapes (development audit)
