@@ -150,8 +150,7 @@ lemma exchange_transitive {E : Type*} [DecidableEq E]
     (ha : moveUnit x i j ∈ B) (hb : moveUnit x j k ∈ B) :
     moveUnit x i k ∈ B := by
   have hi : moveUnit x j k j < moveUnit x i j j := by
-    simp [moveUnit, Ne.symm hij, hjk]
-    omega
+    simp [moveUnit, Ne.symm hij, hjk] <;> omega
   obtain ⟨t, ht, hat, hbt⟩ := hB _ ha _ hb j hi
   have htik : t = i ∨ t = k := by
     by_contra hh
