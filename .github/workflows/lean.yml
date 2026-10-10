@@ -1,0 +1,48 @@
+name: Pinned Lean verification
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install elan
+        run: |
+          curl https://elan.lean-lang.org/elan-init.sh -sSf | sh -s -- -y
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+
+      - name: Confirm pinned Lean
+        run: |
+          export PATH="$HOME/.elan/bin:$PATH"
+          lean --version
+
+      - name: Resolve exact Mathlib commit
+        run: |
+          export PATH="$HOME/.elan/bin:$PATH"
+          lake update
+          test "$(git -C .lake/packages/mathlib rev-parse HEAD)" = "9944fe2973b8dc0b86949101ed98232c07cd54a0"
+
+      - name: Fetch Mathlib cache
+        run: |
+          export PATH="$HOME/.elan/bin:$PATH"
+          lake exe cache get
+
+      - name: Reject proof escapes
+        run: |
+          if grep -R -n -E '\bsorry\b|\badmit\b|native_decide|implemented_by|@\[extern\]|\bunsafe\b' --include='*.lean' TuringTask TuringTask.lean Verify.lean; then
+            echo "Forbidden proof escape found."
+            exit 1
+          fi
+
+      - name: Build and verify
+        run: |
+          export PATH="$HOME/.elan/bin:$PATH"
+          lake build
+          lake env lean TuringTask/Basic.lean
+          lake env lean Verify.lean | tee verification.log
