@@ -266,6 +266,26 @@ lemma exchange_of_globalMins
     rw [hyeq]
     exact hy.2 z hz
 
+
+def ExchangeClosed (B : Set (E → ℤ)) : Prop :=
+  ∀ x ∈ B, ∀ y ∈ B, ∀ i : E,
+    y i < x i →
+      ∃ j : E,
+        x j < y j ∧
+        moveUnit x i j ∈ B ∧
+        moveUnit y j i ∈ B
+
+def minimizerSet
+    (D : Finset (E → ℤ)) (c : (E → ℤ) → ℤ) : Set (E → ℤ) :=
+  {x | IsGlobalMin D c x}
+
+lemma minimizerSet_exchangeClosed
+    (D : Finset (E → ℤ)) (c : (E → ℤ) → ℤ) (r : ℤ)
+    (h : IntegerExchangeAxioms D c r) :
+    ExchangeClosed (minimizerSet D c) := by
+  intro x hx y hy i hi
+  exact exchange_of_globalMins D c r h hx hy i hi
+
 end BasicIdentities
 
 theorem integer_exchange_price_certificate
