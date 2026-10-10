@@ -14,8 +14,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Cache Lean and Mathlib checkout
-        uses: actions/cache@v4
+      - name: Restore pinned Lean development cache
+        uses: actions/cache/restore@v4
         with:
           path: |
             ~/.elan
@@ -44,6 +44,14 @@ jobs:
         run: |
           export PATH="$HOME/.elan/bin:$PATH"
           lake exe cache get
+
+      - name: Save pinned Lean development cache
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ~/.elan
+            .lake/packages
+          key: turing-lean433rc1-mathlib-9944fe2973b8dc0b86949101ed98232c07cd54a0
 
       - name: Compile current development
         run: |
