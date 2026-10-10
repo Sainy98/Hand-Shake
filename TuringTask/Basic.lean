@@ -133,13 +133,13 @@ lemma exists_source_of_sum_eq_of_ne
   classical
   by_contra h
   push_neg at h
-  have hle : ∀ i, x i ≤ y i := fun i => le_of_not_gt (h i)
+  have hle : ∀ i, x i ≤ y i := h
   have hstrict : ∃ i, x i < y i := by
     by_contra h'
     push_neg at h'
     apply hne
     funext i
-    exact le_antisymm (hle i) (le_of_not_gt (h' i))
+    exact le_antisymm (hle i) (h' i)
   obtain ⟨i, hi⟩ := hstrict
   have hlt : (∑ k, x k) < ∑ k, y k := by
     refine Finset.sum_lt_sum (fun k _ => hle k) ?_
@@ -159,10 +159,10 @@ lemma posDist_move_toward
     omega
   unfold posDist
   have hrest :
-      (∑ k in Finset.univ.erase i,
-        Int.toNat (x k - moveUnit y j i k)) =
-      ∑ k in Finset.univ.erase i,
-        Int.toNat (x k - y k) := by
+      (Finset.univ.erase i).sum
+        (fun k => Int.toNat (x k - moveUnit y j i k)) =
+      (Finset.univ.erase i).sum
+        (fun k => Int.toNat (x k - y k)) := by
     apply Finset.sum_congr rfl
     intro k hk
     have hki : k ≠ i := (Finset.mem_erase.mp hk).1
