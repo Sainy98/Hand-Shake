@@ -1,4 +1,4 @@
 import TuringTask.Basic
 
-#print TuringTask.integer_exchange_price_certificate
-#print axioms TuringTask.integer_exchange_price_certificate
+#print TuringTask.minimum_cost_multiple_symmetric_basis_exchange
+#print axioms TuringTask.minimum_cost_multiple_symmetric_basis_exchange
