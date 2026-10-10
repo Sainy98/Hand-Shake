@@ -65,6 +65,67 @@ lemma moveUnit_commute (x : E → ℤ) (i j k l : E) :
   simp [moveUnit]
   ring
 
+
+def positiveGap (x y : E → ℤ) : ℤ :=
+  ∑ k, max (x k - y k) 0
+
+lemma sum_two_change (f g : E → ℤ) (i j : E) (hij : i ≠ j)
+    (hrest : ∀ k, k ≠ i → k ≠ j → f k = g k) :
+    (∑ k, f k) =
+      (∑ k, g k) + (f i - g i) + (f j - g j) := by
+  classical
+  calc
+    (∑ k, f k) =
+        ∑ k, (g k +
+          (if k = i then f i - g i else 0) +
+          (if k = j then f j - g j else 0)) := by
+      apply Finset.sum_congr rfl
+      intro k hk
+      by_cases hki : k = i
+      · subst k
+        simp [hij]
+      · by_cases hkj : k = j
+        · subst k
+          simp [hki, hij]
+        · simp [hki, hkj, hrest k hki hkj]
+    _ = (∑ k, g k) + (f i - g i) + (f j - g j) := by
+      simp [Finset.sum_add_distrib]
+      ring
+
+lemma positiveGap_nonneg (x y : E → ℤ) :
+    0 ≤ positiveGap x y := by
+  unfold positiveGap
+  exact Finset.sum_nonneg fun _ _ => le_max_right _ _
+
+lemma positiveGap_moveToward (x y : E → ℤ) (i j : E)
+    (hi : y i < x i) (hj : x j < y j) :
+    positiveGap x (moveUnit y j i) = positiveGap x y - 1 := by
+  have hij : i ≠ j := by
+    intro h
+    subst j
+    omega
+  let f : E → ℤ := fun k => max (x k - moveUnit y j i k) 0
+  let g : E → ℤ := fun k => max (x k - y k) 0
+  have hrest : ∀ k, k ≠ i → k ≠ j → f k = g k := by
+    intro k hki hkj
+    simp [f, g, moveUnit, hki, hkj]
+  have hsum := sum_two_change f g i j hij hrest
+  have hfi : f i = x i - y i - 1 := by
+    have hnonneg : 0 ≤ x i - y i - 1 := by omega
+    simp [f, moveUnit, hij, max_eq_left hnonneg]
+  have hgi : g i = x i - y i := by
+    have hnonneg : 0 ≤ x i - y i := by omega
+    simp [g, max_eq_left hnonneg]
+  have hfj : f j = 0 := by
+    have hnonpos : x j - (y j - 1) ≤ 0 := by omega
+    simp [f, moveUnit, hij, max_eq_right hnonpos]
+  have hgj : g j = 0 := by
+    have hnonpos : x j - y j ≤ 0 := by omega
+    simp [g, max_eq_right hnonpos]
+  change (∑ k, f k) = (∑ k, g k) - 1
+  rw [hsum, hfi, hgi, hfj, hgj]
+  ring
+
 end BasicIdentities
 
 theorem integer_exchange_price_certificate
