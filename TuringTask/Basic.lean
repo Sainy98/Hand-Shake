@@ -221,6 +221,56 @@ lemma isMinOn_iff_local
   · intro hloc
     exact ⟨hx, fun y hy => local_optimal_implies_global h hx hloc y hy⟩
 
+
+lemma minimizer_exchange
+    {E : Type*} [Fintype E] [DecidableEq E]
+    {D : Finset (E → ℤ)} {c : (E → ℤ) → ℤ} {r : ℤ}
+    (h : IntegerExchangeAxioms D c r)
+    {x y : E → ℤ}
+    (hx : IsMinOn D c x) (hy : IsMinOn D c y)
+    {i : E} (hi : y i < x i) :
+    ∃ j : E,
+      x j < y j ∧
+      IsMinOn D c (moveUnit x i j) ∧
+      IsMinOn D c (moveUnit y j i) := by
+  obtain ⟨j, hj, hxj, hyj, hcost⟩ := h.2 x hx.1 y hy.1 i hi
+  have hxle : c x ≤ c (moveUnit x i j) := hx.2 _ hxj
+  have hyle : c y ≤ c (moveUnit y j i) := hy.2 _ hyj
+  have heqx : c (moveUnit x i j) = c x := by omega
+  have heqy : c (moveUnit y j i) = c y := by omega
+  refine ⟨j, hj, ?_, ?_⟩
+  · refine ⟨hxj, ?_⟩
+    intro z hz
+    rw [heqx]
+    exact hx.2 z hz
+  · refine ⟨hyj, ?_⟩
+    intro z hz
+    rw [heqy]
+    exact hy.2 z hz
+
+def coordSum
+    {E : Type*} [DecidableEq E]
+    (S : Finset E) (x : E → ℤ) : ℤ :=
+  ∑ i in S, x i
+
+lemma coordSum_moveUnit
+    {E : Type*} [Fintype E] [DecidableEq E]
+    (S : Finset E) (x : E → ℤ) (i j : E) :
+    coordSum S (moveUnit x i j) =
+      coordSum S x -
+        (if i ∈ S then 1 else 0) +
+        (if j ∈ S then 1 else 0) := by
+  classical
+  simp [coordSum, moveUnit, Finset.sum_sub_distrib, Finset.sum_add_distrib]
+
+lemma integerPairing_add
+    {E : Type*} [Fintype E]
+    (p q x : E → ℤ) :
+    integerPairing (fun i => p i + q i) x =
+      integerPairing p x + integerPairing q x := by
+  classical
+  simp [integerPairing, add_mul, Finset.sum_add_distrib]
+
 theorem integer_exchange_price_certificate
     {E : Type*} [Fintype E] [DecidableEq E]
     (D₁ D₂ : Finset (E → ℤ))
