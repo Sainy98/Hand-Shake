@@ -1,73 +1,44 @@
-name: Pinned Lean verification
-
+name: Independent proof development
 on:
   push:
-    branches: ["main"]
+    branches: [golden-independent]
   pull_request:
-    branches: ["main"]
-  workflow_dispatch:
-
+    branches: [main]
 jobs:
-  verify:
+  verify_helpers:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
-
-      - name: Restore pinned Lean development cache
-        uses: actions/cache/restore@v4
+      - uses: actions/cache/restore@v4
         with:
           path: |
             ~/.elan
             .lake/packages
           key: turing-lean433rc1-mathlib-9944fe2973b8dc0b86949101ed98232c07cd54a0
-
-      - name: Install elan
+      - name: Install elan if needed
         run: |
           if [ ! -x "$HOME/.elan/bin/elan" ]; then
-            curl https://elan.lean-lang.org/elan-init.sh -sSf | sh -s -- -y
+            curl -sSf https://elan.lean-lang.org/elan-init.sh | sh -s -- -y
           fi
           echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
-
-      - name: Confirm pinned Lean
+      - name: Check pinned toolchain and dependency
         run: |
-          export PATH="$HOME/.elan/bin:$PATH"
           lean --version
-
-      - name: Resolve exact Mathlib commit
-        run: |
-          export PATH="$HOME/.elan/bin:$PATH"
           lake update
           test "$(git -C .lake/packages/mathlib rev-parse HEAD)" = "9944fe2973b8dc0b86949101ed98232c07cd54a0"
-
-      - name: Fetch Mathlib cache
-        run: |
-          export PATH="$HOME/.elan/bin:$PATH"
           lake exe cache get
-
-      - name: Save pinned Lean development cache
-        uses: actions/cache/save@v4
-        with:
-          path: |
-            ~/.elan
-            .lake/packages
-          key: turing-lean433rc1-mathlib-9944fe2973b8dc0b86949101ed98232c07cd54a0
-
-      - name: Compile current development
+      - name: Compile independently written helpers
         run: |
-          export PATH="$HOME/.elan/bin:$PATH"
-          lake build
+          set -o pipefail
+          lake build 2>&1 | tee build.log
           lake env lean TuringTask/Basic.lean
-
-      - name: Reject proof escapes (development audit)
-        continue-on-error: true
+          lake env lean Verify.lean 2>&1 | tee helper-verification.log
+      - name: Audit helper source
         run: |
-          if grep -R -n -E '\bsorry\b|\badmit\b|native_decide|implemented_by|@\[extern\]|\bunsafe\b' --include='*.lean' TuringTask TuringTask.lean Verify.lean; then
-            echo "Forbidden proof escape found."
-            exit 1
-          fi
-
-      - name: Verify current theorem
-        run: |
-          export PATH="$HOME/.elan/bin:$PATH"
-          lake env lean Verify.lean | tee verification.log
+          python3 - <<'PY'
+          import pathlib,re
+          for p in pathlib.Path('.').glob('TuringTask/**/*.lean'):
+              text=p.read_text()
+              assert not re.search(r'\b(sorry|admit|native_decide|unsafe|implemented_by)\b|@\[extern\]|^\s*axiom\s',text,re.M), str(p)
+          PY

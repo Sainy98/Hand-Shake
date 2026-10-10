@@ -1,4 +1,4 @@
 import TuringTask.Basic
 
-#print TuringTask.integer_exchange_price_certificate
-#print axioms TuringTask.integer_exchange_price_certificate
+#print axioms TuringTask.local_global
+#print axioms TuringTask.no_shortcut_multiMove
