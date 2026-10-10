@@ -109,27 +109,19 @@ lemma positiveGap_moveToward (x y : E → ℤ) (i j : E)
     simp [f, g, moveUnit, hki, hkj]
   have hsum := sum_two_change f g i j hij hrest
   have hfi : f i = x i - y i - 1 := by
-    have hmove : moveUnit y j i i = y i + 1 := by
-      simp [moveUnit, hij]
     dsimp [f]
-    rw [hmove, max_eq_left]
-    · ring
-    · omega
+    simp [moveUnit, hij]
+    rw [max_eq_left] <;> omega
   have hgi : g i = x i - y i := by
     dsimp [g]
-    rw [max_eq_left]
-    · rfl
-    · omega
+    rw [max_eq_left] <;> omega
   have hfj : f j = 0 := by
-    have hmove : moveUnit y j i j = y j - 1 := by
-      simp [moveUnit, hij, hij.symm]
     dsimp [f]
-    rw [hmove, max_eq_right]
-    omega
+    simp [moveUnit, hij, hij.symm]
+    rw [max_eq_right] <;> omega
   have hgj : g j = 0 := by
     dsimp [g]
-    rw [max_eq_right]
-    omega
+    rw [max_eq_right] <;> omega
   change (∑ k, f k) = (∑ k, g k) - 1
   rw [hsum, hfi, hgi, hfj, hgj]
   ring
@@ -211,7 +203,7 @@ lemma IntegerExchangeAxioms.minusTilt
   intro x hx y hy i hi
   obtain ⟨j, hj, hxmove, hymove, hcost⟩ := h.2 x hx y hy i hi
   refine ⟨j, hj, hxmove, hymove, ?_⟩
-  rw [minusTilt, minusTilt, minusTilt, minusTilt,
+  rw [TuringTask.minusTilt, TuringTask.minusTilt, TuringTask.minusTilt, TuringTask.minusTilt,
     integerPairing_moveUnit, integerPairing_moveUnit]
   omega
 
@@ -223,7 +215,7 @@ lemma IntegerExchangeAxioms.plusTilt
   intro x hx y hy i hi
   obtain ⟨j, hj, hxmove, hymove, hcost⟩ := h.2 x hx y hy i hi
   refine ⟨j, hj, hxmove, hymove, ?_⟩
-  rw [plusTilt, plusTilt, plusTilt, plusTilt,
+  rw [TuringTask.plusTilt, TuringTask.plusTilt, TuringTask.plusTilt, TuringTask.plusTilt,
     integerPairing_moveUnit, integerPairing_moveUnit]
   omega
 
