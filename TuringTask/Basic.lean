@@ -117,8 +117,8 @@ lemma positiveGap_moveToward (x y : E → ℤ) (i j : E)
     rw [max_eq_left] <;> omega
   have hfj : f j = 0 := by
     dsimp [f]
-    simp [moveUnit, hij, hij.symm]
-    rw [max_eq_right] <;> omega
+    have hnonpos : x j - (y j - 1) ≤ 0 := by omega
+    simpa [moveUnit, hij.symm, max_eq_right hnonpos]
   have hgj : g j = 0 := by
     dsimp [g]
     rw [max_eq_right] <;> omega
@@ -315,7 +315,9 @@ lemma multiMove_snoc {n : ℕ} (x : E → ℤ)
           (fun a : Fin n => v a.castSucc))
         (u (Fin.last n)) (v (Fin.last n)) := by
   funext k
-  simp [multiMove, moveUnit, Fin.sum_univ_castSucc]
+  simp only [multiMove, moveUnit]
+  rw [Fin.sum_univ_castSucc, Fin.sum_univ_castSucc,
+    Fin.sum_univ_castSucc, Fin.sum_univ_castSucc]
   ring
 
 lemma endpointsInjective_prefix {n : ℕ}
@@ -333,7 +335,7 @@ lemma endpointsInjective_prefix {n : ℕ}
               (Sum.inl a.castSucc : Fin (n + 1) ⊕ Fin (n + 1)) =
                 Sum.inl b.castSucc := h hab
           have hab' : a.castSucc = b.castSucc := Sum.inl.inj hbig
-          exact congrArg Sum.inl (Fin.castSucc_injective hab')
+          exact congrArg Sum.inl ((Fin.castSucc_injective _) hab')
       | inr b =>
           have hbig :
               (Sum.inl a.castSucc : Fin (n + 1) ⊕ Fin (n + 1)) =
@@ -351,7 +353,7 @@ lemma endpointsInjective_prefix {n : ℕ}
               (Sum.inr a.castSucc : Fin (n + 1) ⊕ Fin (n + 1)) =
                 Sum.inr b.castSucc := h hab
           have hab' : a.castSucc = b.castSucc := Sum.inr.inj hbig
-          exact congrArg Sum.inr (Fin.castSucc_injective hab')
+          exact congrArg Sum.inr ((Fin.castSucc_injective _) hab')
 
 lemma endpointsInjective_u_ne_v {n : ℕ}
     {u v : Fin n → E} (h : EndpointsInjective u v)
@@ -394,7 +396,8 @@ lemma noShortcut_multiMove_mem
   induction n with
   | zero =>
       intro u v hinj hsingle hshortcut
-      simpa [multiMove] using hx
+      rw [multiMove_zero x u v]
+      exact hx
   | succ n ih =>
       intro u v hinj hsingle hshortcut
       let u0 : Fin n → E := fun a => u a.castSucc
@@ -422,7 +425,8 @@ lemma noShortcut_multiMove_mem
         have huinj := endpointsInjective_u hinj
         have heq : (Fin.last n : Fin (n + 1)) = a.castSucc :=
           huinj hua
-        exact (Fin.last_ne_castSucc a) heq
+        have hval := congrArg Fin.val heq
+        simp at hval
       have hul_fresh_v : ∀ a : Fin n, ul ≠ v0 a := by
         intro a huv
         exact endpointsInjective_u_ne_v hinj (Fin.last n) a.castSucc huv
