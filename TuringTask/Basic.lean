@@ -119,6 +119,108 @@ lemma exists_minOn
       ⟨hne.choose, hne.choose_spec⟩
   exact ⟨x, hx, hmin⟩
 
+
+def posDist
+    {E : Type*} [Fintype E] (x y : E → ℤ) : ℕ :=
+  ∑ i, Int.toNat (x i - y i)
+
+lemma exists_source_of_sum_eq_of_ne
+    {E : Type*} [Fintype E]
+    {x y : E → ℤ}
+    (hsum : (∑ i, x i) = ∑ i, y i)
+    (hne : x ≠ y) :
+    ∃ i, y i < x i := by
+  classical
+  by_contra h
+  push_neg at h
+  have hle : ∀ i, x i ≤ y i := fun i => le_of_not_gt (h i)
+  have hstrict : ∃ i, x i < y i := by
+    by_contra h'
+    push_neg at h'
+    apply hne
+    funext i
+    exact le_antisymm (hle i) (le_of_not_gt (h' i))
+  obtain ⟨i, hi⟩ := hstrict
+  have hlt : (∑ k, x k) < ∑ k, y k := by
+    refine Finset.sum_lt_sum (fun k _ => hle k) ?_
+    exact ⟨i, Finset.mem_univ i, hi⟩
+  rw [hsum] at hlt
+  exact (lt_irrefl _ hlt)
+
+lemma posDist_move_toward
+    {E : Type*} [Fintype E] [DecidableEq E]
+    {x y : E → ℤ} {i j : E}
+    (hi : y i < x i) (hj : x j < y j) :
+    posDist x (moveUnit y j i) + 1 = posDist x y := by
+  classical
+  have hij : i ≠ j := by
+    intro h
+    subst j
+    omega
+  unfold posDist
+  have hrest :
+      (∑ k in Finset.univ.erase i,
+        Int.toNat (x k - moveUnit y j i k)) =
+      ∑ k in Finset.univ.erase i,
+        Int.toNat (x k - y k) := by
+    apply Finset.sum_congr rfl
+    intro k hk
+    have hki : k ≠ i := (Finset.mem_erase.mp hk).1
+    by_cases hkj : k = j
+    · subst k
+      rw [moveUnit_apply_src (x := y) (i := j) (j := i) (Ne.symm hij)]
+      omega
+    · rw [moveUnit_apply_of_ne (x := y) (i := j) (j := i) hkj hki]
+  rw [← Finset.sum_erase_add Finset.univ
+      (fun k => Int.toNat (x k - moveUnit y j i k)) (Finset.mem_univ i),
+    ← Finset.sum_erase_add Finset.univ
+      (fun k => Int.toNat (x k - y k)) (Finset.mem_univ i),
+    hrest,
+    moveUnit_apply_dst (x := y) (i := j) (j := i) (Ne.symm hij)]
+  omega
+
+lemma local_optimal_implies_global
+    {E : Type*} [Fintype E] [DecidableEq E]
+    {D : Finset (E → ℤ)} {c : (E → ℤ) → ℤ} {r : ℤ}
+    (h : IntegerExchangeAxioms D c r)
+    {x : E → ℤ} (hx : x ∈ D)
+    (hloc : ∀ i j : E, moveUnit x i j ∈ D →
+      c x ≤ c (moveUnit x i j))
+    (y : E → ℤ) (hy : y ∈ D) :
+    c x ≤ c y := by
+  by_cases hxy : x = y
+  · simpa [hxy]
+  have hsum : (∑ i, x i) = ∑ i, y i := by
+    rw [h.1 x hx, h.1 y hy]
+  obtain ⟨i, hi⟩ := exists_source_of_sum_eq_of_ne hsum hxy
+  obtain ⟨j, hj, hxj, hyj, hcost⟩ := h.2 x hx y hy i hi
+  have hxle := hloc i j hxj
+  have hynew : c (moveUnit y j i) ≤ c y := by
+    omega
+  have hdist :
+      posDist x (moveUnit y j i) < posDist x y := by
+    have hd := posDist_move_toward (x := x) (y := y) hi hj
+    omega
+  have hrec :=
+    local_optimal_implies_global h hx hloc (moveUnit y j i) hyj
+  exact hrec.trans hynew
+termination_by posDist x y
+decreasing_by exact hdist
+
+lemma isMinOn_iff_local
+    {E : Type*} [Fintype E] [DecidableEq E]
+    {D : Finset (E → ℤ)} {c : (E → ℤ) → ℤ} {r : ℤ}
+    (h : IntegerExchangeAxioms D c r)
+    {x : E → ℤ} (hx : x ∈ D) :
+    IsMinOn D c x ↔
+      ∀ i j : E, moveUnit x i j ∈ D →
+        c x ≤ c (moveUnit x i j) := by
+  constructor
+  · intro hmin i j hij
+    exact hmin.2 _ hij
+  · intro hloc
+    exact ⟨hx, fun y hy => local_optimal_implies_global h hx hloc y hy⟩
+
 theorem integer_exchange_price_certificate
     {E : Type*} [Fintype E] [DecidableEq E]
     (D₁ D₂ : Finset (E → ℤ))
