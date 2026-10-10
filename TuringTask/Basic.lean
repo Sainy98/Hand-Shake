@@ -316,8 +316,7 @@ lemma multiMove_snoc {n : ℕ} (x : E → ℤ)
         (u (Fin.last n)) (v (Fin.last n)) := by
   funext k
   simp only [multiMove, moveUnit]
-  rw [Fin.sum_univ_castSucc, Fin.sum_univ_castSucc,
-    Fin.sum_univ_castSucc, Fin.sum_univ_castSucc]
+  rw [Fin.sum_univ_castSucc, Fin.sum_univ_castSucc]
   ring
 
 lemma endpointsInjective_prefix {n : ℕ}
@@ -427,6 +426,7 @@ lemma noShortcut_multiMove_mem
           huinj hua
         have hval := congrArg Fin.val heq
         simp at hval
+        omega
       have hul_fresh_v : ∀ a : Fin n, ul ≠ v0 a := by
         intro a huv
         exact endpointsInjective_u_ne_v hinj (Fin.last n) a.castSucc huv
