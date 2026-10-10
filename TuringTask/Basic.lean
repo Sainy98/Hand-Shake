@@ -81,6 +81,10 @@ lemma IntegerExchangeAxioms.sub_pairing
   intro x hx y hy i hi
   obtain ⟨j, hj, hxj, hyj, hcost⟩ := h.2 x hx y hy i hi
   refine ⟨j, hj, hxj, hyj, ?_⟩
+  change
+    (c (moveUnit x i j) - integerPairing p (moveUnit x i j)) +
+        (c (moveUnit y j i) - integerPairing p (moveUnit y j i)) ≤
+      (c x - integerPairing p x) + (c y - integerPairing p y)
   rw [integerPairing_moveUnit, integerPairing_moveUnit]
   omega
 
@@ -94,6 +98,10 @@ lemma IntegerExchangeAxioms.add_pairing
   intro x hx y hy i hi
   obtain ⟨j, hj, hxj, hyj, hcost⟩ := h.2 x hx y hy i hi
   refine ⟨j, hj, hxj, hyj, ?_⟩
+  change
+    (c (moveUnit x i j) + integerPairing p (moveUnit x i j)) +
+        (c (moveUnit y j i) + integerPairing p (moveUnit y j i)) ≤
+      (c x + integerPairing p x) + (c y + integerPairing p y)
   rw [integerPairing_moveUnit, integerPairing_moveUnit]
   omega
 
