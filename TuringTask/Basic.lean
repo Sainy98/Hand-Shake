@@ -56,7 +56,6 @@ lemma integerPairing_moveUnit (p x : E → ℤ) (i j : E) :
   classical
   simp [integerPairing, moveUnit, mul_sub, mul_add,
     Finset.sum_sub_distrib, Finset.sum_add_distrib]
-  ring
 
 lemma moveUnit_commute (x : E → ℤ) (i j k l : E) :
     moveUnit (moveUnit x i j) k l =
@@ -90,7 +89,6 @@ lemma sum_two_change (f g : E → ℤ) (i j : E) (hij : i ≠ j)
         · simp [hki, hkj, hrest k hki hkj]
     _ = (∑ k, g k) + (f i - g i) + (f j - g j) := by
       simp [Finset.sum_add_distrib]
-      ring
 
 lemma positiveGap_nonneg (x y : E → ℤ) :
     0 ≤ positiveGap x y := by
@@ -111,17 +109,27 @@ lemma positiveGap_moveToward (x y : E → ℤ) (i j : E)
     simp [f, g, moveUnit, hki, hkj]
   have hsum := sum_two_change f g i j hij hrest
   have hfi : f i = x i - y i - 1 := by
-    have hnonneg : 0 ≤ x i - y i - 1 := by omega
-    simp [f, moveUnit, hij, max_eq_left hnonneg]
+    have hmove : moveUnit y j i i = y i + 1 := by
+      simp [moveUnit, hij]
+    dsimp [f]
+    rw [hmove, max_eq_left]
+    · ring
+    · omega
   have hgi : g i = x i - y i := by
-    have hnonneg : 0 ≤ x i - y i := by omega
-    simp [g, max_eq_left hnonneg]
+    dsimp [g]
+    rw [max_eq_left]
+    · rfl
+    · omega
   have hfj : f j = 0 := by
-    have hnonpos : x j - (y j - 1) ≤ 0 := by omega
-    simp [f, moveUnit, hij, max_eq_right hnonpos]
+    have hmove : moveUnit y j i j = y j - 1 := by
+      simp [moveUnit, hij, hij.symm]
+    dsimp [f]
+    rw [hmove, max_eq_right]
+    omega
   have hgj : g j = 0 := by
-    have hnonpos : x j - y j ≤ 0 := by omega
-    simp [g, max_eq_right hnonpos]
+    dsimp [g]
+    rw [max_eq_right]
+    omega
   change (∑ k, f k) = (∑ k, g k) - 1
   rw [hsum, hfi, hgi, hfj, hgj]
   ring
@@ -134,13 +142,13 @@ lemma exists_lt_coord_of_same_sum_ne
     ∃ i, y i < x i := by
   by_contra h
   push_neg at h
-  have hdiff : (∑ i, x i - y i) = 0 := by
+  have hdiff : (∑ i, (x i - y i)) = 0 := by
     rw [Finset.sum_sub_distrib, hsum]
     ring
   have hnonneg : ∀ i ∈ (Finset.univ : Finset E), 0 ≤ y i - x i := by
     intro i hi
     exact sub_nonneg.mpr (h i)
-  have hdiff' : (∑ i, y i - x i) = 0 := by
+  have hdiff' : (∑ i, (y i - x i)) = 0 := by
     rw [Finset.sum_sub_distrib, ← hsum]
     ring
   have hzero := (Finset.sum_eq_zero_iff_of_nonneg hnonneg).mp hdiff'
