@@ -188,6 +188,84 @@ lemma local_optimal_implies_global
   have hmin := hzmin (moveUnit z j i) hzmoveB
   omega
 
+
+def minusTilt (c : (E → ℤ) → ℤ) (p : E → ℤ) (x : E → ℤ) : ℤ :=
+  c x - integerPairing p x
+
+def plusTilt (c : (E → ℤ) → ℤ) (p : E → ℤ) (x : E → ℤ) : ℤ :=
+  c x + integerPairing p x
+
+lemma IntegerExchangeAxioms.minusTilt
+    (D : Finset (E → ℤ)) (c : (E → ℤ) → ℤ) (r : ℤ)
+    (h : IntegerExchangeAxioms D c r) (p : E → ℤ) :
+    IntegerExchangeAxioms D (minusTilt c p) r := by
+  refine ⟨h.1, ?_⟩
+  intro x hx y hy i hi
+  obtain ⟨j, hj, hxmove, hymove, hcost⟩ := h.2 x hx y hy i hi
+  refine ⟨j, hj, hxmove, hymove, ?_⟩
+  rw [minusTilt, minusTilt, minusTilt, minusTilt,
+    integerPairing_moveUnit, integerPairing_moveUnit]
+  omega
+
+lemma IntegerExchangeAxioms.plusTilt
+    (D : Finset (E → ℤ)) (c : (E → ℤ) → ℤ) (r : ℤ)
+    (h : IntegerExchangeAxioms D c r) (p : E → ℤ) :
+    IntegerExchangeAxioms D (plusTilt c p) r := by
+  refine ⟨h.1, ?_⟩
+  intro x hx y hy i hi
+  obtain ⟨j, hj, hxmove, hymove, hcost⟩ := h.2 x hx y hy i hi
+  refine ⟨j, hj, hxmove, hymove, ?_⟩
+  rw [plusTilt, plusTilt, plusTilt, plusTilt,
+    integerPairing_moveUnit, integerPairing_moveUnit]
+  omega
+
+def IsGlobalMin
+    (D : Finset (E → ℤ)) (c : (E → ℤ) → ℤ) (x : E → ℤ) : Prop :=
+  x ∈ D ∧ ∀ y ∈ D, c x ≤ c y
+
+lemma exists_globalMin
+    (D : Finset (E → ℤ)) (c : (E → ℤ) → ℤ)
+    (hne : D.Nonempty) :
+    ∃ x, IsGlobalMin D c x := by
+  classical
+  obtain ⟨x, hx, hxmin⟩ := D.exists_min_image c hne
+  exact ⟨x, hx, hxmin⟩
+
+lemma IsGlobalMin.local
+    (D : Finset (E → ℤ)) (c : (E → ℤ) → ℤ)
+    {x : E → ℤ} (hx : IsGlobalMin D c x) :
+    ∀ i j : E, moveUnit x i j ∈ D → c x ≤ c (moveUnit x i j) := by
+  intro i j hmove
+  exact hx.2 _ hmove
+
+lemma exchange_of_globalMins
+    (D : Finset (E → ℤ)) (c : (E → ℤ) → ℤ) (r : ℤ)
+    (h : IntegerExchangeAxioms D c r)
+    {x y : E → ℤ}
+    (hx : IsGlobalMin D c x) (hy : IsGlobalMin D c y)
+    (i : E) (hi : y i < x i) :
+    ∃ j : E,
+      x j < y j ∧
+      IsGlobalMin D c (moveUnit x i j) ∧
+      IsGlobalMin D c (moveUnit y j i) := by
+  obtain ⟨j, hj, hxmove, hymove, hcost⟩ :=
+    h.2 x hx.1 y hy.1 i hi
+  have hxy : c x = c y :=
+    le_antisymm (hx.2 y hy.1) (hy.2 x hx.1)
+  have hxlo : c x ≤ c (moveUnit x i j) := hx.2 _ hxmove
+  have hylo : c y ≤ c (moveUnit y j i) := hy.2 _ hymove
+  have hxeq : c (moveUnit x i j) = c x := by
+    omega
+  have hyeq : c (moveUnit y j i) = c y := by
+    omega
+  refine ⟨j, hj, ⟨hxmove, ?_⟩, ⟨hymove, ?_⟩⟩
+  · intro z hz
+    rw [hxeq]
+    exact hx.2 z hz
+  · intro z hz
+    rw [hyeq]
+    exact hy.2 z hz
+
 end BasicIdentities
 
 theorem integer_exchange_price_certificate
