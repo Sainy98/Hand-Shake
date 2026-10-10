@@ -1,0 +1,4 @@
+import TuringTask.Basic
+
+#print TuringTask.integer_exchange_price_certificate
+#print axioms TuringTask.integer_exchange_price_certificate
