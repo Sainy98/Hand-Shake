@@ -1,11 +1,11 @@
-name: Independent proof development
+name: Independent Golden verification
 on:
   push:
     branches: [golden-independent]
   pull_request:
     branches: [main]
 jobs:
-  verify_helpers:
+  verify_golden:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -28,17 +28,31 @@ jobs:
           lake update
           test "$(git -C .lake/packages/mathlib rev-parse HEAD)" = "9944fe2973b8dc0b86949101ed98232c07cd54a0"
           lake exe cache get
-      - name: Compile independently written helpers
+      - name: Verify exact theorem
         run: |
           set -o pipefail
           lake build 2>&1 | tee build.log
           lake env lean TuringTask/Basic.lean
-          lake env lean Verify.lean 2>&1 | tee helper-verification.log
-      - name: Audit helper source
+          lake env lean Verify.lean 2>&1 | tee verification.log
+      - name: Reject proof escapes
         run: |
           python3 - <<'PY'
           import pathlib,re
           for p in pathlib.Path('.').glob('TuringTask/**/*.lean'):
               text=p.read_text()
               assert not re.search(r'\b(sorry|admit|native_decide|unsafe|implemented_by)\b|@\[extern\]|^\s*axiom\s',text,re.M), str(p)
+          PY
+
+      - name: Check exact theorem foundational dependencies
+        run: |
+          python3 - <<'PY'
+          import pathlib,re
+          s=pathlib.Path('verification.log').read_text()
+          rows=[x for x in s.splitlines() if "depends on axioms:" in x]
+          assert len(rows)==1, rows
+          assert 'sorryAx' not in rows[0]
+          xs=re.search(r'\[(.*?)\]',rows[0]).group(1)
+          actual={x.strip() for x in xs.split(',') if x.strip()}
+          assert actual <= {'propext','Classical.choice','Quot.sound'}, actual
+          print('Exact theorem axiom audit: PASS')
           PY
