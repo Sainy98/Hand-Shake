@@ -35,6 +35,12 @@ jobs:
           export PATH="$HOME/.elan/bin:$PATH"
           lake exe cache get
 
+      - name: Compile current development
+        run: |
+          export PATH="$HOME/.elan/bin:$PATH"
+          lake build
+          lake env lean TuringTask/Basic.lean
+
       - name: Reject proof escapes
         run: |
           if grep -R -n -E '\bsorry\b|\badmit\b|native_decide|implemented_by|@\[extern\]|\bunsafe\b' --include='*.lean' TuringTask TuringTask.lean Verify.lean; then
@@ -42,9 +48,7 @@ jobs:
             exit 1
           fi
 
-      - name: Build and verify
+      - name: Verify final theorem
         run: |
           export PATH="$HOME/.elan/bin:$PATH"
-          lake build
-          lake env lean TuringTask/Basic.lean
           lake env lean Verify.lean | tee verification.log
