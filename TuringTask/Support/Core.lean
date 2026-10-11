@@ -188,9 +188,9 @@ lemma roots_nonempty_of_cut (src dst : A → V) {k : ℕ}
   have himem : i ∈ missingRoots R (Finset.univ : Finset V) := by
     rw [mem_rootsMissing]
     simp [hRi0]
-  have : missingRoots R (Finset.univ : Finset V) = ∅ := Finset.card_eq_zero.mp hm0
-  rw [this] at himem
-  exact Finset.notMem_empty i himem
+  have hempty : missingRoots R (Finset.univ : Finset V) = ∅ :=
+    Finset.card_eq_zero.mp hm0
+  simpa [hempty] using himem
 
 lemma missing_mono_of_shrink_set {k : ℕ} (R : Fin k → Finset V)
     {X Y : Finset V} (hXY : X ⊆ Y) :
