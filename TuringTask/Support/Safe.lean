@@ -83,7 +83,7 @@ lemma exists_safe_root_arc (src dst : A → V) {k : ℕ}
     have hiBig : i ∉ missingRoots R Y := by
       rw [mem_rootsMissing]
       exact fun hd => hYroot.not_disjoint hd.symm
-    exact Finset.card_lt_card (Finset.ssubset_iff_of_subset hsub |>.2 ⟨i, hiSmall, hiBig⟩)
+    exact Finset.card_lt_card ((Finset.ssubset_iff_of_subset hsub).2 ⟨i, hiSmall, hiBig⟩)
 
   have hcutOutside := hcut (Y \ R i) houtside
   have hcutYtoOutside :
