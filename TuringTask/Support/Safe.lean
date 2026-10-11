@@ -5,7 +5,7 @@ namespace Support
 
 section Auxiliary
 
-variable {V A : Type*} [Fintype V] [DecidableEq V]
+variable {V A : Type*} [Fintype V] [DecidableEq V] [DecidableEq A]
 
 lemma exists_safe_root_arc (src dst : A → V) {k : ℕ}
     (R : Fin k → Finset V) (avail : Finset A)
@@ -80,10 +80,13 @@ lemma exists_safe_root_arc (src dst : A → V) {k : ℕ}
     have hiSmall : i ∈ missingRoots R (Y \ R i) := by
       rw [mem_rootsMissing, Finset.disjoint_left]
       intro x hxR hxDiff
-      exact hxDiff.2 hxR
+      exact (Finset.mem_sdiff.mp hxDiff).2 hxR
     have hiBig : i ∉ missingRoots R Y := by
       rw [mem_rootsMissing]
-      exact fun hd => hYroot.not_disjoint hd.symm
+      intro hd
+      rw [Finset.disjoint_left] at hd
+      obtain ⟨x, hxY, hxR⟩ := hYroot
+      exact (hd hxR) hxY
     exact Finset.card_lt_card ((Finset.ssubset_iff_of_subset hsub).2 ⟨i, hiSmall, hiBig⟩)
 
   have hcutOutside := hcut (Y \ R i) houtside
@@ -96,8 +99,8 @@ lemma exists_safe_root_arc (src dst : A → V) {k : ℕ}
   have heOut' := (mem_cutArcs.mp heOut)
   have heAvail : e ∈ avail := heOut'.1
   have heDstDiff : dst e ∈ Y \ R i := heOut'.2.2
-  have heDstY : dst e ∈ Y := heDstDiff.1
-  have heDstR : dst e ∉ R i := heDstDiff.2
+  have heDstY : dst e ∈ Y := (Finset.mem_sdiff.mp heDstDiff).1
+  have heDstR : dst e ∉ R i := (Finset.mem_sdiff.mp heDstDiff).2
   have heSrcNotDiff : src e ∉ Y \ R i := heOut'.2.1
   have heNotY' : ¬ (src e ∉ Y ∧ dst e ∈ Y) := by
     intro h
@@ -117,9 +120,10 @@ lemma exists_safe_root_arc (src dst : A → V) {k : ℕ}
     rw [mem_rootsMissing] at hj ⊢
     by_cases hji : j = i
     · subst j
-      simpa [R', Function.update_same] using
-        hj.mono_left (by intro x hx; exact Finset.mem_insert_of_mem hx)
-    · simpa [R', Function.update_noteq hji] using hj
+      have hj' : Disjoint (insert (dst e) (R i)) X := by
+        simpa [R', Function.update_apply] using hj
+      exact hj'.mono_left (Finset.subset_insert (dst e) (R i))
+    · simpa [R', Function.update_apply, hji] using hj
 
   by_cases heX : e ∈ cutArcs src dst avail X
   · have heXdata := mem_cutArcs.mp heX
@@ -132,7 +136,8 @@ lemma exists_safe_root_arc (src dst : A → V) {k : ℕ}
     have hcardCutErase :
         (cutArcs src dst (avail.erase e) X).card + 1 =
           (cutArcs src dst avail X).card := by
-      rw [hcutEraseEq, Finset.card_erase_of_mem heX]
+      rw [hcutEraseEq]
+      exact Finset.card_erase_add_one heX
 
     by_cases hRiX : Disjoint (R i) X
     · have hiOld : i ∈ missingRoots R X := by simpa [mem_rootsMissing]
@@ -144,7 +149,8 @@ lemma exists_safe_root_arc (src dst : A → V) {k : ℕ}
         · simp [R', missingRoots, hji]
       have hcardMiss :
           (missingRoots R' X).card + 1 = (missingRoots R X).card := by
-        rw [hmissEq, Finset.card_erase_of_mem hiOld]
+        rw [hmissEq]
+        exact Finset.card_erase_add_one hiOld
       have hc := hcut X hXne
       omega
     · have hmissEq : missingRoots R' X = missingRoots R X := by
@@ -192,12 +198,12 @@ lemma exists_safe_root_arc (src dst : A → V) {k : ℕ}
         omega
       rw [hmissEq]
       omega
-  · have hcutSame : cutArcs src dst (avail.erase e) X = cutArcs src dst avail X := by
+  · have hcutEraseEq :
+        cutArcs src dst (avail.erase e) X = (cutArcs src dst avail X).erase e := by
       ext a
-      by_cases hae : a = e
-      · subst a
-        simp [cutArcs, heX]
-      · simp [cutArcs, hae]
+      simp [cutArcs, and_assoc, and_left_comm, and_comm]
+    have hcutSame : cutArcs src dst (avail.erase e) X = cutArcs src dst avail X := by
+      rw [hcutEraseEq, Finset.erase_eq_of_notMem heX]
     have hc := hcut X hXne
     have hm := Finset.card_le_card hmissSub
     rw [hcutSame]
@@ -215,14 +221,14 @@ lemma rootDeficit_grow {k : ℕ} (R : Fin k → Finset V)
   · intro j hj
     by_cases hji : j = i
     · subst j
-      simp only [Function.update_same]
+      simp only [Function.update_apply]
       exact Finset.card_le_card (by
         intro x hx
         simp only [Finset.mem_sdiff, Finset.mem_univ, true_and] at hx ⊢
         exact fun h => hx (Finset.mem_insert_of_mem h))
-    · simp [Function.update_noteq hji]
+    · simp [Function.update_apply, hji]
   · refine ⟨i, Finset.mem_univ i, ?_⟩
-    simp only [Function.update_same]
+    simp only [Function.update_apply]
     apply Finset.card_lt_card
     rw [Finset.ssubset_iff_of_subset]
     · refine ⟨v, ?_, ?_⟩
@@ -255,6 +261,7 @@ lemma add_arc_to_extra_root (src dst : A → V)
           Relation.ReflTransGen (step src dst (insert e B)) r v :=
       Relation.ReflTransGen.mono (by
         intro a b hab
+        change ∃ f ∈ B, src f = a ∧ dst f = b at hab
         rcases hab with ⟨f, hf, hfa, hfb⟩
         exact ⟨f, Finset.mem_insert_of_mem hf, hfa, hfb⟩)
     rcases Finset.mem_insert.mp hr with hr | hr
@@ -314,8 +321,8 @@ lemma packing_from_cut (src dst : A → V) {k : ℕ}
             rw [hempty] at this
             exact Finset.notMem_empty v this
         refine ⟨fun _ => ∅, ?_, ?_, ?_⟩
-        · intro i x hx
-          exact Finset.notMem_empty x hx
+        · intro i
+          exact Finset.empty_subset avail0
         · intro i
           simpa [hall i] using branching_univ_empty (V := V) (A := A) src dst
         · intro i j hij
@@ -341,11 +348,12 @@ lemma packing_from_cut (src dst : A → V) {k : ℕ}
           by_cases hji : j = i
           · subst j
             intro a ha
-            simp only [B1, Function.update_same] at ha
-            rcases Finset.mem_insert.mp ha with rfl | ha
-            · exact heAvail
+            simp only [B1, Function.update_apply, if_pos rfl] at ha
+            rcases Finset.mem_insert.mp ha with hae | ha
+            · subst a
+              exact heAvail
             · exact Finset.mem_of_mem_erase (hBavail i ha)
-          · simpa [B1, Function.update_noteq hji] using
+          · simpa [B1, Function.update_apply, hji] using
               (fun a ha => Finset.mem_of_mem_erase (hBavail j ha))
         · intro j
           by_cases hji : j = i
@@ -358,32 +366,34 @@ lemma packing_from_cut (src dst : A → V) {k : ℕ}
             rw [hroot] at hb
             simpa [B1] using
               add_arc_to_extra_root src dst (R0 i) (B i) e heNotB heSrc heDst hb
-          · have hroot : R1 j = R0 j := by simp [R1, Function.update_noteq hji]
+          · have hroot : R1 j = R0 j := by simp [R1, Function.update_apply, hji]
             have hb := hBbranch j
             rw [hroot] at hb
-            simpa [B1, Function.update_noteq hji] using hb
+            simpa [B1, Function.update_apply, hji] using hb
         · intro p q hpq
           by_cases hpi : p = i
           · subst p
-            have hqi : q ≠ i := by exact fun h => hpq h
-            rw [show B1 i = insert e (B i) by simp [B1],
-              show B1 q = B q by simp [B1, Function.update_noteq hqi]]
+            have hqi : q ≠ i := by exact fun h => hpq h.symm
+            rw [show B1 i = insert e (B i) by simp [B1, Function.update_apply],
+              show B1 q = B q by simp [B1, Function.update_apply, hqi]]
             rw [Finset.disjoint_left]
             intro a ha haq
-            rcases Finset.mem_insert.mp ha with rfl | ha
-            · exact (Finset.notMem_erase e avail0) (hBavail q haq)
+            rcases Finset.mem_insert.mp ha with hae | ha
+            · subst a
+              exact (Finset.notMem_erase e avail0) (hBavail q haq)
             · exact (Finset.disjoint_left.mp (hBdis i q hpq)) ha haq
           · by_cases hqi : q = i
             · subst q
               have hip : i ≠ p := Ne.symm hpi
-              rw [show B1 p = B p by simp [B1, Function.update_noteq hpi],
-                show B1 i = insert e (B i) by simp [B1]]
+              rw [show B1 p = B p by simp [B1, Function.update_apply, hpi],
+                show B1 i = insert e (B i) by simp [B1, Function.update_apply]]
               rw [Finset.disjoint_left]
               intro a hap ha
-              rcases Finset.mem_insert.mp ha with rfl | hai
-              · exact (Finset.notMem_erase e avail0) (hBavail p hap)
+              rcases Finset.mem_insert.mp ha with hae | hai
+              · subst a
+                exact (Finset.notMem_erase e avail0) (hBavail p hap)
               · exact (Finset.disjoint_left.mp (hBdis p i hpq)) hap hai
-            · simpa [B1, Function.update_noteq hpi, Function.update_noteq hqi] using
+            · simpa [B1, Function.update_apply, hpi, Function.update_apply, hqi] using
                 hBdis p q hpq
   exact build (rootDeficit R) R avail rfl hcut
 
