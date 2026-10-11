@@ -41,9 +41,10 @@ lemma exists_safe_root_arc (src dst : A → V) {k : ℕ}
       have : missingRoots R (Finset.univ : Finset V) = ∅ := by
         apply Finset.eq_empty_iff_forall_notMem.mpr
         intro j hj
-        rw [mem_rootsMissing] at hj
-        exact (hj.notMem_of_mem_right (Finset.mem_univ (Classical.choose (hRne j))))
-          (Classical.choose_spec (hRne j))
+        rw [mem_rootsMissing, Finset.disjoint_left] at hj
+        let r := Classical.choose (hRne j)
+        have hr : r ∈ R j := Classical.choose_spec (hRne j)
+        exact (hj hr) (Finset.mem_univ r)
       simp [this]
     omega
 
