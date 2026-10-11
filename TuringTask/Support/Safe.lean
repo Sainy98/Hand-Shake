@@ -158,7 +158,8 @@ lemma exists_safe_root_arc (src dst : A → V) {k : ℕ}
         have htight : (cutArcs src dst avail X).card = (missingRoots R X).card := by
           omega
         have hrootX : (X ∩ R i).Nonempty := by
-          simpa [Finset.not_disjoint_iff_nonempty_inter] using hRiX
+          rw [← Finset.not_disjoint_iff_nonempty_inter]
+          simpa [disjoint_comm] using hRiX
         have hnotSub : ¬ X ⊆ R i := by
           intro hsub
           exact heDstR (hsub hdstX)
@@ -168,7 +169,8 @@ lemma exists_safe_root_arc (src dst : A → V) {k : ℕ}
           refine ⟨dst e, ?_⟩
           simp [heDstY, hdstX]
         have hrootY : ¬ Disjoint (R i) Y := by
-          exact fun hd => hYroot.not_disjoint hd.symm
+          rw [Finset.not_disjoint_iff_nonempty_inter]
+          simpa [Finset.inter_comm] using hYroot
         have hrootX' : ¬ Disjoint (R i) X := hRiX
         obtain ⟨hItight, hrootI⟩ :=
           uncross_inter_tight src dst R avail hcut Y X hYne hXne
