@@ -1,0 +1,91 @@
+name: Independent Edmonds golden verification
+
+on:
+  push:
+    branches: ["golden-edmonds-independent"]
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Restore pinned Lean development cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            ~/.elan
+            .lake/packages
+          key: turing-lean433rc1-mathlib-9944fe2973b8dc0b86949101ed98232c07cd54a0
+
+      - name: Install elan
+        run: |
+          if [ ! -x "$HOME/.elan/bin/elan" ]; then
+            curl https://elan.lean-lang.org/elan-init.sh -sSf | sh -s -- -y
+          fi
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+
+      - name: Resolve exact Mathlib commit
+        run: |
+          export PATH="$HOME/.elan/bin:$PATH"
+          lean --version
+          lake update
+          test "$(git -C .lake/packages/mathlib rev-parse HEAD)" = "9944fe2973b8dc0b86949101ed98232c07cd54a0"
+          lake exe cache get
+
+      - name: Build and verify
+        run: |
+          export PATH="$HOME/.elan/bin:$PATH"
+          set -o pipefail
+          lake env lean TuringTask/Basic.lean 2>&1 | tee direct.log
+          lake build 2>&1 | tee build.log
+          lake env lean Verify.lean 2>&1 | tee verification.log
+
+      - name: Reject proof escapes
+        run: |
+          python3 - <<'PY'
+          import pathlib,re
+          bad = re.compile(r'\b(sorry|admit|native_decide|unsafe|implemented_by)\b|@\[extern\]|^\s*axiom\s', re.M)
+          for p in pathlib.Path("TuringTask").rglob("*.lean"):
+              text=p.read_text()
+              assert not bad.search(text), p
+          print("proof escape audit: PASS")
+          PY
+
+      - name: Check target axioms
+        run: |
+          python3 - <<'PY'
+          import pathlib,re
+          s=pathlib.Path("verification.log").read_text()
+          rows=[x for x in s.splitlines() if "depends on axioms:" in x]
+          assert len(rows)==1, rows
+          row=rows[0]
+          assert "sorryAx" not in row, row
+          m=re.search(r'\[(.*?)\]',row)
+          actual={x.strip() for x in m.group(1).split(',') if x.strip()}
+          assert actual <= {"propext","Classical.choice","Quot.sound"}, actual
+          print("axiom audit:", sorted(actual))
+          PY
+
+      - name: Package verified project
+        run: |
+          rm -rf golden-package
+          mkdir -p golden-package/TuringTask/Support
+          cp lakefile.toml lean-toolchain lake-manifest.json TuringTask.lean golden-package/
+          cp TuringTask/Basic.lean golden-package/TuringTask/
+          cp TuringTask/Support/*.lean golden-package/TuringTask/Support/
+          cp verification.log direct.log build.log golden-package/
+          cd golden-package
+          zip -r ../TuringTask.zip .
+          cd ..
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: independent-edmonds-golden
+          path: |
+            TuringTask.zip
+            verification.log
+            build.log
+            direct.log
