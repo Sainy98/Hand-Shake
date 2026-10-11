@@ -130,13 +130,15 @@ lemma dangerous_has_arc (src dst : A → V) (E : Finset A) (R : Fin k → Finset
     have hr : src e ∈ R i := by
       by_contra hr
       exact he.2.1 ⟨hs, hr⟩
-    exact hn e he.1 hr hs he.2.2.1 he.2.2.2
+    exact he.2.2.2 (hn e he.1 hr hs he.2.2.1)
   have hmiss : rootsMissingSet R X ⊂ rootsMissingSet R (X \ R i) := by
     apply Finset.ssubset_iff_subset_ne.mpr
     refine ⟨missing_antitone R Finset.sdiff_subset, ?_⟩
     intro heq
     have hi : i ∈ rootsMissingSet R (X \ R i) := by
-      simp [rootsMissingSet, Finset.disjoint_sdiff_right]
+      have hd : Disjoint (R i) (X \ R i) :=
+        Finset.disjoint_left.mpr (fun x hx hxs => (Finset.mem_sdiff.mp hxs).2 hx)
+      simp [rootsMissingSet, hd]
     have hi' : i ∈ rootsMissingSet R X := heq.symm ▸ hi
     exact hX.2.2 (by simpa [rootsMissingSet] using hi')
   have hlt := Finset.card_lt_card hmiss
@@ -154,13 +156,13 @@ lemma safe_arc_in_danger (src dst : A → V) (E : Finset A) (R : Fin k → Finse
   classical
   revert hX hout
   induction X using Finset.strongInductionOn with
-  | h X ih =>
+  | _ X ih =>
     intro hX hout
     obtain ⟨e, he, hsR, hsX, hdX, hdR⟩ := dangerous_has_arc src dst E R hc i X hX hout
     by_cases hsafe : ∀ Y : Finset V, Dangerous src dst E R i Y →
         ¬ (src e ∉ Y ∧ dst e ∈ Y)
     · exact ⟨e, he, hsR, hdR, hsafe⟩
-    · push_neg at hsafe
+    · push Not at hsafe
       obtain ⟨Y, hY, hsY, hdY⟩ := hsafe
       have hI := dangerous_inter src dst E R hc i X Y hX hY
         ⟨dst e, Finset.mem_inter.mpr ⟨hdX, hdY⟩⟩
@@ -187,7 +189,7 @@ lemma safe_arc [Fintype V] (src dst : A → V) (E : Finset A)
   have hdis : ¬ Disjoint (R i) Finset.univ := by
     intro hd
     have : i ∈ rootsMissingSet R Finset.univ := by simp [rootsMissingSet, hd]
-    simpa [hzero] using this
+    simp [hzero] at this
   apply safe_arc_in_danger src dst E R hc i Finset.univ
   · exact ⟨⟨v, Finset.mem_univ _⟩, by simp [hcut, hzero], hdis⟩
   · exact fun h => hv (h (Finset.mem_univ v))
@@ -200,16 +202,28 @@ lemma grow_missing (R : Fin k → Finset V) (i : Fin k) (v : V) (X : Finset V) :
       if v ∈ X then (rootsMissingSet R X).erase i else rootsMissingSet R X := by
   classical
   ext j
-  by_cases hv : v ∈ X <;> by_cases hji : j = i
-  all_goals simp [rootsMissingSet, growRoots, hv, hji, Finset.disjoint_insert_left]
+  by_cases hv : v ∈ X
+  · rw [if_pos hv]
+    simp only [rootsMissingSet, Finset.mem_erase, Finset.mem_filter,
+      Finset.mem_univ, true_and]
+    by_cases hji : j = i
+    · subst j
+      simp [growRoots, Finset.disjoint_insert_left, hv]
+    · simp [growRoots, hji]
+  · rw [if_neg hv]
+    simp only [rootsMissingSet, Finset.mem_filter, Finset.mem_univ, true_and]
+    by_cases hji : j = i
+    · subst j
+      simp [growRoots, Finset.disjoint_insert_left, hv]
+    · simp [growRoots, hji]
 
-lemma cut_erase (src dst : A → V) (E : Finset A) (e : A) (X : Finset V) :
+lemma cut_erase [DecidableEq A] (src dst : A → V) (E : Finset A) (e : A) (X : Finset V) :
     cut src dst (E.erase e) X = (cut src dst E X).erase e := by
   classical
   ext a
   simp [cut, and_assoc, and_left_comm, and_comm]
 
-lemma grow_preserves_cut (src dst : A → V) (E : Finset A) (R : Fin k → Finset V)
+lemma grow_preserves_cut [DecidableEq A] (src dst : A → V) (E : Finset A) (R : Fin k → Finset V)
     (hc : CutCondition src dst E R) (i : Fin k) (e : A)
     (hsafe : ∀ Y : Finset V, Dangerous src dst E R i Y →
       ¬ (src e ∉ Y ∧ dst e ∈ Y)) :
@@ -236,12 +250,13 @@ lemma grow_preserves_cut (src dst : A → V) (E : Finset A) (R : Fin k → Finse
     · exact le_trans (Finset.card_le_card (Finset.erase_subset _ _)) h
     · exact h
 
+omit [DecidableEq V] in
 lemma step_mono (src dst : A → V) {B C : Finset A} (h : B ⊆ C) :
     selectedArcStep src dst B ≤ selectedArcStep src dst C := by
   rintro u v ⟨e, he, hs, hd⟩
   exact ⟨e, h he, hs, hd⟩
 
-lemma branching_add_arc (src dst : A → V) (R : Finset V) (B : Finset A) (e : A)
+lemma branching_add_arc [DecidableEq A] (src dst : A → V) (R : Finset V) (B : Finset A) (e : A)
     (hB : IsSpanningBranching src dst (insert (dst e) R) B)
     (hs : src e ∈ R) (hd : dst e ∉ R) (he : e ∉ B) :
     IsSpanningBranching src dst R (insert e B) := by
@@ -257,7 +272,7 @@ lemma branching_add_arc (src dst : A → V) (R : Finset V) (B : Finset A) (e : A
       simpa [Finset.filter_insert, hne, hv] using hB.1 v
   · intro v
     obtain ⟨r, hr, hp⟩ := hB.2 v
-    have hp' := hp.mono (step_mono src dst (Finset.subset_insert e B))
+    have hp' := Relation.ReflTransGen.mono (step_mono src dst (Finset.subset_insert e B)) r v hp
     obtain hr | hr := Finset.mem_insert.mp hr
     · subst r
       refine ⟨src e, hs, (Relation.ReflTransGen.single ?_).trans hp'⟩
@@ -273,14 +288,14 @@ lemma packing_from_cut [Fintype V] (src dst : A → V) (E : Finset A)
   classical
   revert R
   induction E using Finset.strongInductionOn with
-  | h E ih =>
+  | _ E ih =>
     intro R hc
     by_cases hfull : ∀ i : Fin k, ∀ v : V, v ∈ R i
     · refine ⟨fun _ => ∅, fun _ => Finset.empty_subset _, ?_, ?_⟩
       · intro i
         refine ⟨fun v => by simp [hfull i v], fun v => ⟨v, hfull i v, .refl⟩⟩
       · simp
-    · push_neg at hfull
+    · push Not at hfull
       obtain ⟨i, v, hv⟩ := hfull
       obtain ⟨e, he, hs, hd, hsafe⟩ := safe_arc src dst E R hc i v hv
       have hc' := grow_preserves_cut src dst E R hc i e hsafe
@@ -293,30 +308,30 @@ lemma packing_from_cut [Fintype V] (src dst : A → V) (E : Finset A)
       · intro j
         by_cases hj : j = i
         · subst j
-          simp only [Function.update_same]
+          simp only [Function.update_self]
           exact Finset.insert_subset he (fun a ha => Finset.mem_of_mem_erase (hsub i ha))
-        · simp only [Function.update_noteq hj]
+        · simp only [Function.update_of_ne hj]
           exact fun a ha => Finset.mem_of_mem_erase (hsub j ha)
       · intro j
         by_cases hj : j = i
         · subst j
-          simp only [Function.update_same]
+          simp only [Function.update_self]
           apply branching_add_arc src dst (R i) (B i) e
           · simpa [growRoots] using hbranch i
           · exact hs
           · exact hd
           · exact hnot i
-        · simpa [Function.update_noteq hj, growRoots, hj] using hbranch j
+        · simpa [Function.update_of_ne hj, growRoots, hj] using hbranch j
       · intro j l hjl
         by_cases hj : j = i <;> by_cases hl : l = i
         · exact False.elim (hjl (hj.trans hl.symm))
         · subst j
-          simp only [Function.update_same, Function.update_noteq hl]
+          simp only [Function.update_self, Function.update_of_ne hl]
           exact Finset.disjoint_insert_left.mpr ⟨hnot l, hdis i l hjl⟩
         · subst l
-          simp only [Function.update_same, Function.update_noteq hj]
+          simp only [Function.update_self, Function.update_of_ne hj]
           exact Finset.disjoint_insert_right.mpr ⟨hnot j, hdis j i hjl⟩
-        · simpa only [Function.update_noteq hj, Function.update_noteq hl] using hdis j l hjl
+        · simpa only [Function.update_of_ne hj, Function.update_of_ne hl] using hdis j l hjl
 
 lemma path_crosses (src dst : A → V) (B : Finset A) (X : Finset V)
     {r v : V} (hp : Relation.ReflTransGen (selectedArcStep src dst B) r v)
