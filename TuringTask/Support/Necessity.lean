@@ -5,32 +5,37 @@ namespace Support
 
 section Auxiliary
 
-variable {V A : Type*} [Fintype V] [DecidableEq V]
+variable {V A : Type*} [Fintype V] [DecidableEq V] [Fintype A]
 
 lemma path_crosses_cut (src dst : A → V) (B : Finset A)
     (X : Finset V) {u v : V}
     (hp : Relation.ReflTransGen (step src dst B) u v)
     (hu : u ∉ X) (hv : v ∈ X) :
     ∃ e ∈ B, src e ∉ X ∧ dst e ∈ X := by
-  induction hp with
-  | refl => exact (hu hv).elim
-  | tail hp hstep ih =>
-      rcases hstep with ⟨e, heB, hsrc, hdst⟩
-      by_cases hm : _ ∈ X
-      · exact ih hu hm
-      · refine ⟨e, heB, ?_, ?_⟩
-        · simpa [hsrc] using hm
-        · simpa [hdst] using hv
+  classical
+  revert hu
+  refine Relation.ReflTransGen.head_induction_on hp ?_ ?_
+  · intro hvout
+    exact (hvout hv).elim
+  · intro a c hstep htail ih haout
+    by_cases hc : c ∈ X
+    · rcases hstep with ⟨e, heB, hsrc, hdst⟩
+      refine ⟨e, heB, ?_, ?_⟩
+      · simpa [hsrc] using haout
+      · simpa [hdst] using hc
+    · exact ih hc
 
 lemma branching_hits_cut (src dst : A → V)
     (R : Finset V) (B : Finset A) (X : Finset V)
     (hB : Branching src dst R B)
     (hX : X.Nonempty) (hmiss : Disjoint R X) :
     ∃ e ∈ B, src e ∉ X ∧ dst e ∈ X := by
+  classical
   obtain ⟨v, hv⟩ := hX
   obtain ⟨r, hr, hp⟩ := hB.2 v
   have hrout : r ∉ X := by
-    exact Finset.disjoint_left.mp hmiss hr
+    rw [Finset.disjoint_left] at hmiss
+    exact hmiss hr
   exact path_crosses_cut src dst B X hp hrout hv
 
 lemma packing_implies_cut (src dst : A → V) {k : ℕ}
@@ -58,8 +63,9 @@ lemma packing_implies_cut (src dst : A → V) {k : ℕ}
     intro i j hij
     apply Subtype.ext
     by_contra hne
-    have hval : chooseArc i i.property = chooseArc j j.property :=
-      congrArg Subtype.val hij
+    have hval : chooseArc i i.property = chooseArc j j.property := by
+      have := congrArg Subtype.val hij
+      simpa [f] using this
     have hiB := (chooseArc_spec i i.property).1
     have hjB := (chooseArc_spec j j.property).1
     have hd := hdis i j (by simpa using hne)
