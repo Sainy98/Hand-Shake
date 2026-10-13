@@ -1,0 +1,4 @@
+import TuringTask.Basic
+
+#check TuringTask.decomposition_is_blossom_feasible
+#print axioms TuringTask.decomposition_is_blossom_feasible

@@ -29,6 +29,7 @@ jobs:
         run: |
           lake env lean TuringTask/Basic.lean
           lake build
+          lake env lean Verify.lean
       - name: Upload development logs and manifest
         if: always()
         uses: actions/upload-artifact@v4
