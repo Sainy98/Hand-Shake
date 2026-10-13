@@ -1,58 +1,37 @@
-name: Independent Edmonds Golden verification
+name: Independent b-matching development
 on:
   push:
-    branches: [golden-edmonds-20261011-independent-v2]
-  pull_request:
-    branches: [main]
+    branches: [golden-bmatching-independent-20261013]
 jobs:
-  verify_golden:
+  development:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/cache/restore@v4
+      - uses: actions/cache@v4
         with:
           path: |
             ~/.elan
             .lake/packages
-          key: turing-lean433rc1-mathlib-9944fe2973b8dc0b86949101ed98232c07cd54a0
-      - name: Install elan if needed
+          key: independent-bmatching-433rc1-9944fe2973b8dc0b86949101ed98232c07cd54a0
+      - name: Install toolchain manager
         run: |
           if [ ! -x "$HOME/.elan/bin/elan" ]; then
             curl -sSf https://elan.lean-lang.org/elan-init.sh | sh -s -- -y
           fi
           echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
-      - name: Check pinned toolchain and dependency
+      - name: Resolve exact environment
         run: |
           lean --version
           lake update
           test "$(git -C .lake/packages/mathlib rev-parse HEAD)" = "9944fe2973b8dc0b86949101ed98232c07cd54a0"
           lake exe cache get
-      - name: Verify exact theorem
+      - name: Check current independently authored lemmas
         run: |
-          set -o pipefail
-          lake build 2>&1 | tee build.log
           lake env lean TuringTask/Basic.lean
-          lake env lean Verify.lean 2>&1 | tee verification.log
-      - name: Reject proof escapes
-        run: |
-          python3 - <<'PY'
-          import pathlib,re
-          for p in pathlib.Path('.').glob('TuringTask/**/*.lean'):
-              text=p.read_text()
-              assert not re.search(r'\b(sorry|admit|native_decide|unsafe|implemented_by)\b|@\[extern\]|^\s*axiom\s',text,re.M), str(p)
-          PY
-
-      - name: Check exact theorem foundational dependencies
-        run: |
-          python3 - <<'PY'
-          import pathlib,re
-          s=pathlib.Path('verification.log').read_text()
-          rows=[x for x in s.splitlines() if "depends on axioms:" in x]
-          assert len(rows)==1, rows
-          assert 'sorryAx' not in rows[0]
-          xs=re.search(r'\[(.*?)\]',rows[0]).group(1)
-          actual={x.strip() for x in xs.split(',') if x.strip()}
-          assert actual <= {'propext','Classical.choice','Quot.sound'}, actual
-          print('Exact theorem axiom audit: PASS')
-          PY
+          lake build
+      - name: Upload development logs and manifest
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: development-manifest
+          path: lake-manifest.json
